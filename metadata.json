@@ -1,0 +1,6 @@
+{
+  "name": "係数ココモ法 ベット管理ツール",
+  "description": "ボートレース三連単1番人気向けの係数ココモ法シミュレーター＆ベット管理Webアプリ。100円単位切り上げ計算、必要合成オッズ・回収率の自動算出、localStorage自動保存、CSV出力機能搭載。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

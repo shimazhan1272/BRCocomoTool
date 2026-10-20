@@ -1,0 +1,2123 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>係数ココモ法 ベット管理ツール | ボートレース資金管理シミュレーター</title>
+    <meta name="description" content="ボートレース三連単1番人気向けの係数ココモ法シミュレーター＆ベット管理Webアプリ。「No.1_10%係数」と「No.2_合成オッズ4倍以上」の切り替え対応、100円単位切り上げ計算、必要合成オッズ・回収率の自動算出、localStorage自動保存、CSV出力機能搭載。" />
+    <meta property="og:title" content="係数ココモ法 ベット管理ツール | ボートレース資金管理シミュレーター" />
+    <meta property="og:description" content="ボートレース三連単1番人気向けの係数ココモ法シミュレーター＆ベット管理Webアプリ。「No.1_10%係数」と「No.2_合成オッズ4倍以上」の切り替え対応、100円単位切り上げ計算、必要合成オッズ・回収率の自動算出、localStorage自動保存、CSV出力機能搭載。" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#0f172a" />
+    <style>
+      /* ==========================================================================
+         係数ココモ法 ベット管理ツール - スタイルシート (Pure CSS / 外部ライブラリ不使用)
+         ========================================================================== */
+      :root {
+        --bg-main: #0b1120;
+        --bg-card: #151f32;
+        --bg-card-sub: #1e293b;
+        --bg-input: #0f172a;
+        --border-color: #334155;
+        --border-focus: #38bdf8;
+        --text-primary: #f8fafc;
+        --text-secondary: #94a3b8;
+        --text-muted: #64748b;
+        
+        --color-hit: #10b981;
+        --color-hit-bg: rgba(16, 185, 129, 0.15);
+        --color-hit-border: rgba(16, 185, 129, 0.4);
+        
+        --color-miss: #ef4444;
+        --color-miss-bg: rgba(239, 68, 68, 0.15);
+        --color-miss-border: rgba(239, 68, 68, 0.4);
+        
+        --color-brand: #0284c7;
+        --color-brand-glow: rgba(2, 132, 199, 0.3);
+        --color-amber: #f59e0b;
+        --color-amber-bg: rgba(245, 158, 11, 0.15);
+        --color-amber-border: rgba(245, 158, 11, 0.4);
+
+        --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      body {
+        font-family: var(--font-family);
+        background-color: var(--bg-main);
+        color: var(--text-primary);
+        line-height: 1.5;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 12px 12px 64px 12px;
+      }
+
+      .app-container {
+        width: 100%;
+        max-width: 560px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      /* 1. ヘッダー */
+      header.app-header {
+        text-align: center;
+        padding: 8px 0 4px 0;
+      }
+
+      .app-title-badge {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        background: rgba(2, 132, 199, 0.2);
+        color: #38bdf8;
+        padding: 3px 10px;
+        border-radius: 9999px;
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        margin-bottom: 6px;
+      }
+
+      .app-title {
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        color: #ffffff;
+      }
+
+      .app-subtitle {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 2px;
+      }
+
+      /* アラート・警告バナー */
+      .banner {
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-size: 13px;
+        line-height: 1.4;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .banner-amber {
+        background-color: var(--color-amber-bg);
+        border: 1px solid var(--color-amber-border);
+        color: #fde68a;
+      }
+      .banner-red {
+        background-color: var(--color-miss-bg);
+        border: 1px solid var(--color-miss-border);
+        color: #fca5a5;
+        animation: pulseWarning 2s infinite ease-in-out;
+      }
+      @keyframes pulseWarning {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+        50% { box-shadow: 0 0 16px 2px rgba(239, 68, 68, 0.6); }
+      }
+
+      /* 共通カード */
+      .card {
+        background-color: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+      }
+
+      /* 2. 設定エリア */
+      details.settings-accordion {
+        background-color: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 14px;
+        overflow: hidden;
+        transition: all 0.2s ease;
+      }
+      details.settings-accordion summary {
+        padding: 12px 16px;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-primary);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        user-select: none;
+      }
+      details.settings-accordion summary::-webkit-details-marker {
+        display: none;
+      }
+      .summary-inner {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+      }
+      .summary-toggle-icon {
+        margin-left: auto;
+        font-size: 12px;
+        transition: transform 0.2s ease;
+        color: var(--text-secondary);
+      }
+      details[open] .summary-toggle-icon {
+        transform: rotate(180deg);
+      }
+      .settings-content {
+        padding: 14px 16px 16px 16px;
+        border-top: 1px solid var(--border-color);
+        background-color: rgba(15, 23, 42, 0.4);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      /* 予定表タイプ選択UI */
+      .plan-selector-container {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .plan-selector-label {
+        font-size: 12px;
+        font-weight: 700;
+        color: #38bdf8;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .plan-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .plan-tab-btn {
+        background: var(--bg-input);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 10px 8px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        color: var(--text-secondary);
+        font-family: inherit;
+      }
+      .plan-tab-btn:hover {
+        border-color: #475569;
+      }
+      .plan-tab-btn.active {
+        background: rgba(2, 132, 199, 0.18);
+        border-color: #0284c7;
+        color: #38bdf8;
+        box-shadow: 0 0 12px rgba(2, 132, 199, 0.25);
+      }
+      .plan-tab-title {
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .plan-tab-desc {
+        font-size: 10px;
+        opacity: 0.85;
+        margin-top: 2px;
+      }
+
+      .settings-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10px;
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .form-group label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+      .input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+      .input-wrapper input {
+        width: 100%;
+        background-color: var(--bg-input);
+        border: 1px solid var(--border-color);
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 700;
+        padding: 8px 24px 8px 10px;
+        border-radius: 8px;
+        outline: none;
+        transition: border-color 0.15s ease;
+      }
+      .input-wrapper input:focus {
+        border-color: var(--border-focus);
+      }
+      .input-wrapper input:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        background-color: rgba(15, 23, 42, 0.8);
+      }
+      .input-unit {
+        position: absolute;
+        right: 8px;
+        font-size: 11px;
+        color: var(--text-muted);
+        pointer-events: none;
+      }
+      .settings-note {
+        font-size: 11px;
+        color: var(--text-muted);
+        line-height: 1.4;
+      }
+
+      /* 3. メイン表示エリア (最も目立たせる) */
+      .main-display-card {
+        background: linear-gradient(145deg, #16243d, #10192a);
+        border: 1px solid #2e4368;
+        border-radius: 20px;
+        padding: 20px 18px;
+        text-align: center;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        position: relative;
+        overflow: hidden;
+      }
+      .main-display-card::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #0284c7, #38bdf8, #10b981);
+      }
+      .step-badge-row {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .step-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #0284c7;
+        color: #ffffff;
+        padding: 4px 14px;
+        border-radius: 9999px;
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+      }
+      .plan-indicator-badge {
+        background: rgba(56, 189, 248, 0.15);
+        color: #38bdf8;
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        padding: 3px 10px;
+        border-radius: 9999px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .streak-badge {
+        background: rgba(239, 68, 68, 0.2);
+        color: #f87171;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        padding: 3px 10px;
+        border-radius: 9999px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .bet-amount-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        letter-spacing: 0.05em;
+        margin-top: 4px;
+      }
+      .bet-amount-large {
+        font-size: 42px;
+        font-weight: 900;
+        color: #38bdf8;
+        line-height: 1.15;
+        letter-spacing: -0.03em;
+        margin: 4px 0 10px 0;
+        text-shadow: 0 2px 12px rgba(56, 189, 248, 0.35);
+      }
+      .bet-amount-large .yen {
+        font-size: 24px;
+        font-weight: 700;
+        margin-left: 2px;
+        color: #93c5fd;
+      }
+      
+      .main-meta-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .meta-box {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 10px 8px;
+        text-align: center;
+      }
+      .meta-label {
+        font-size: 11px;
+        color: var(--text-secondary);
+        font-weight: 600;
+        margin-bottom: 2px;
+      }
+      .meta-value {
+        font-size: 17px;
+        font-weight: 800;
+      }
+      .odds-highlight {
+        color: #facc15;
+      }
+
+      /* 収支表示の色分け */
+      .profit-plus {
+        color: #10b981 !important;
+      }
+      .profit-minus {
+        color: #ef4444 !important;
+      }
+      .profit-zero {
+        color: #94a3b8 !important;
+      }
+
+      /* 4. 操作ボタン (モバイルファースト・特大) */
+      .actions-container {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .primary-buttons-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .btn {
+        appearance: none;
+        border: none;
+        border-radius: 16px;
+        font-family: inherit;
+        font-weight: 800;
+        cursor: pointer;
+        transition: transform 0.08s ease, filter 0.15s ease, box-shadow 0.15s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        user-select: none;
+      }
+      .btn:active {
+        transform: scale(0.97);
+      }
+      .btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        transform: none !important;
+        box-shadow: none !important;
+      }
+      .btn-hit {
+        background: linear-gradient(180deg, #10b981, #059669);
+        color: #ffffff;
+        padding: 16px 12px;
+        font-size: 20px;
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      }
+      .btn-hit .subtext {
+        font-size: 11px;
+        font-weight: 600;
+        opacity: 0.9;
+        margin-top: 2px;
+      }
+      .btn-miss {
+        background: linear-gradient(180deg, #ef4444, #dc2626);
+        color: #ffffff;
+        padding: 16px 12px;
+        font-size: 20px;
+        box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      }
+      .btn-miss .subtext {
+        font-size: 11px;
+        font-weight: 600;
+        opacity: 0.9;
+        margin-top: 2px;
+      }
+
+      .secondary-buttons-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+      }
+      .btn-secondary {
+        background: var(--bg-card-sub);
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        padding: 10px 8px;
+        font-size: 12px;
+        font-weight: 700;
+        border-radius: 10px;
+      }
+      .btn-secondary:hover:not(:disabled) {
+        background: #283548;
+        border-color: #475569;
+      }
+
+      /* 5. 成績サマリー */
+      .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .section-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+      }
+      @media (max-width: 420px) {
+        .summary-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      .summary-stat-box {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 8px 10px;
+      }
+      .summary-stat-box.highlight-box {
+        background: rgba(2, 132, 199, 0.12);
+        border-color: rgba(56, 189, 248, 0.3);
+      }
+      .stat-label {
+        font-size: 10px;
+        color: var(--text-secondary);
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .stat-value {
+        font-size: 15px;
+        font-weight: 800;
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* 6. 予定表 (1〜22回目) */
+      .table-container {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border-radius: 10px;
+        border: 1px solid var(--border-color);
+      }
+      table.data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        text-align: right;
+        min-width: 460px;
+      }
+      table.data-table th, table.data-table td {
+        padding: 8px 10px;
+        border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+      }
+      table.data-table th {
+        background-color: #1e293b;
+        color: var(--text-secondary);
+        font-weight: 700;
+        font-size: 11px;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+      }
+      table.data-table th:first-child, table.data-table td:first-child {
+        text-align: center;
+      }
+      table.data-table tr:last-child td {
+        border-bottom: none;
+      }
+      .row-active {
+        background-color: rgba(2, 132, 199, 0.25) !important;
+        font-weight: 800;
+      }
+      .row-active td {
+        color: #38bdf8 !important;
+      }
+      .badge-current-row {
+        background: #0284c7;
+        color: #fff;
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-right: 4px;
+      }
+
+      /* 7. 履歴エリア */
+      .history-table-container {
+        max-height: 380px;
+        overflow-y: auto;
+      }
+      table.history-table {
+        min-width: 580px;
+      }
+      .row-hit {
+        background-color: rgba(16, 185, 129, 0.12) !important;
+      }
+      .row-miss {
+        background-color: rgba(239, 68, 68, 0.10) !important;
+      }
+      .row-reset {
+        background-color: rgba(100, 116, 139, 0.18) !important;
+        color: var(--text-secondary);
+        text-align: center !important;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+      }
+      .row-reset td {
+        text-align: center !important;
+        padding: 10px 8px !important;
+        border-top: 1px dashed var(--border-color);
+        border-bottom: 1px dashed var(--border-color);
+      }
+      .tag-result {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 6px;
+      }
+      .tag-hit {
+        background-color: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.4);
+      }
+      .tag-miss {
+        background-color: rgba(239, 68, 68, 0.2);
+        color: #f87171;
+        border: 1px solid rgba(239, 68, 68, 0.4);
+      }
+      .tag-reset {
+        background-color: rgba(148, 163, 184, 0.2);
+        color: #cbd5e1;
+      }
+      .history-empty-state {
+        text-align: center;
+        padding: 32px 16px;
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+
+      /* モーダルダイアログ */
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.75);
+        backdrop-filter: blur(4px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        z-index: 1000;
+      }
+      .modal-backdrop.open {
+        display: flex;
+        animation: fadeIn 0.15s ease-out;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      .modal-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 20px;
+        width: 100%;
+        max-width: 400px;
+        padding: 20px;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .modal-title {
+        font-size: 17px;
+        font-weight: 800;
+        color: #ffffff;
+      }
+      .modal-close-btn {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-size: 20px;
+        cursor: pointer;
+        padding: 4px;
+        line-height: 1;
+      }
+      .payout-input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .payout-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+      .payout-input {
+        width: 100%;
+        background-color: var(--bg-input);
+        border: 2px solid #0284c7;
+        color: #ffffff;
+        font-size: 24px;
+        font-weight: 900;
+        padding: 12px 36px 12px 14px;
+        border-radius: 12px;
+        outline: none;
+      }
+      .payout-input:focus {
+        border-color: #38bdf8;
+        box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+      }
+      .payout-unit {
+        position: absolute;
+        right: 14px;
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text-secondary);
+      }
+      .quick-chips-row {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .chip-btn {
+        background: var(--bg-card-sub);
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        font-size: 11px;
+        font-weight: 700;
+        padding: 5px 9px;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      .chip-btn:active {
+        background: #334155;
+      }
+      .payout-preview-box {
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .preview-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+      }
+      .preview-val {
+        font-weight: 700;
+      }
+      .payout-warning {
+        font-size: 11px;
+        color: #fbbf24;
+        background: rgba(245, 158, 11, 0.12);
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        display: none;
+      }
+      .payout-error {
+        font-size: 11px;
+        color: #f87171;
+        display: none;
+      }
+      .modal-actions {
+        display: flex;
+        gap: 10px;
+      }
+      .modal-actions .btn {
+        flex: 1;
+        padding: 12px 10px;
+        font-size: 15px;
+      }
+      .btn-cancel {
+        background: var(--bg-card-sub);
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+      }
+      .btn-confirm {
+        background: linear-gradient(180deg, #10b981, #059669);
+        color: #ffffff;
+      }
+
+      /* リセットモーダルの選択肢リスト */
+      .reset-options-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .btn-reset-option {
+        text-align: left;
+        align-items: flex-start;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: var(--bg-card-sub);
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+      }
+      .btn-reset-option .option-title {
+        font-size: 14px;
+        font-weight: 800;
+      }
+      .btn-reset-option .option-desc {
+        font-size: 11px;
+        color: var(--text-secondary);
+        margin-top: 2px;
+      }
+      .btn-reset-option.danger {
+        border-color: rgba(239, 68, 68, 0.4);
+        background: rgba(239, 68, 68, 0.08);
+      }
+      .btn-reset-option.danger .option-title {
+        color: #f87171;
+      }
+
+      /* フッター */
+      footer.app-footer {
+        text-align: center;
+        padding: 16px 8px;
+        font-size: 11px;
+        color: var(--text-muted);
+        line-height: 1.5;
+        border-top: 1px solid var(--border-color);
+        margin-top: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-container">
+      
+      <!-- 1. ヘッダー -->
+      <header class="app-header">
+        <div class="app-title-badge">BOAT RACE 舟券資金管理</div>
+        <h1 class="app-title">係数ココモ法 ベット管理ツール</h1>
+        <p class="app-subtitle">三連単1番人気対応 ・ 2種類のココモ予定表選択可能</p>
+      </header>
+
+      <!-- 警告バナー (12回目以上・15回目以降に動的表示) -->
+      <div id="dangerBanner" class="banner banner-red" style="display: none;">
+        <span style="font-size: 18px;">🚨</span>
+        <div>
+          <strong>厳重警戒（15回目以降）</strong><br />
+          賭け金が高額になっています。許容投資額を超えないよう損切りルールの徹底・無理のないベットを行ってください。
+        </div>
+      </div>
+      <div id="warningBanner" class="banner banner-amber" style="display: none;">
+        <span style="font-size: 18px;">⚠️</span>
+        <div>
+          <strong>注意（12回目以上）</strong><br />
+          賭け金が急激に増加しています。資金残高と連敗リスクを慎重に確認してください。
+        </div>
+      </div>
+
+      <!-- ストレージ利用不可時の警告 -->
+      <div id="storageAlert" class="banner banner-amber" style="display: none;">
+        <span>ℹ️</span>
+        <div>お使いのブラウザではlocalStorageが無効です。タブを閉じるとデータは初期化されます。</div>
+      </div>
+
+      <!-- 2. 設定エリア (折りたたみ可) -->
+      <details class="settings-accordion" id="settingsAccordion" open>
+        <summary>
+          <div class="summary-inner">
+            <span>⚙️ ココモ法 設定</span>
+            <span class="summary-toggle-icon">▼</span>
+          </div>
+        </summary>
+        <div class="settings-content">
+          <!-- 予定表タイプの選択 -->
+          <div class="plan-selector-container">
+            <div class="plan-selector-label">
+              <span>📋 適用するココモ予定表</span>
+            </div>
+            <div class="plan-tabs">
+              <button type="button" class="plan-tab-btn active" id="tabPlanNo1" data-type="no1">
+                <div class="plan-tab-title">No.1_10%係数</div>
+                <div class="plan-tab-desc">通常ココモ×係数%切上</div>
+              </button>
+              <button type="button" class="plan-tab-btn" id="tabPlanNo2" data-type="no2">
+                <div class="plan-tab-title">No.2_合成オッズ4倍以上</div>
+                <div class="plan-tab-desc">必要合成4.0倍以下キープ</div>
+              </button>
+            </div>
+          </div>
+
+          <div class="settings-grid">
+            <div class="form-group">
+              <label for="inputInitialAmount">初回金額</label>
+              <div class="input-wrapper">
+                <input type="number" id="inputInitialAmount" value="100" min="100" step="100" inputmode="numeric" />
+                <span class="input-unit">円</span>
+              </div>
+            </div>
+            <div class="form-group" id="groupCoefficient">
+              <label for="inputCoefficient" id="labelCoefficient">係数（%）</label>
+              <div class="input-wrapper">
+                <input type="number" id="inputCoefficient" value="10" min="1" max="100" step="1" inputmode="numeric" />
+                <span class="input-unit">%</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="inputReturnSteps">的中時戻り</label>
+              <div class="input-wrapper">
+                <input type="number" id="inputReturnSteps" value="3" min="1" max="20" step="1" inputmode="numeric" />
+                <span class="input-unit">回</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-note" id="planNo2Note" style="display: none; color: #38bdf8;">
+            ※ 「No.2_合成オッズ4倍以上」選択時は、4回目以降の必要合成オッズが約4.0倍以下になるよう賭け金が自動計算されます（独自係数）。
+          </div>
+          <div class="settings-note" id="settingsNote" style="display: none;">
+            ※ 設定変更は過去のベット履歴には影響しません（過去の記録は記録時の賭け金のまま保持されます）。
+          </div>
+        </div>
+      </details>
+
+      <!-- 3. メイン表示エリア (最も目立たせる) -->
+      <div class="main-display-card">
+        <div class="step-badge-row">
+          <div class="step-badge">
+            <span>現在</span>
+            <span id="currentStepText" style="font-size: 17px;">1</span>
+            <span>回目</span>
+          </div>
+          <div class="plan-indicator-badge" id="mainPlanIndicator">
+            No.1_10%係数
+          </div>
+          <div class="streak-badge" id="currentStreakBadge" style="display: none;">
+            <span id="currentStreakText">0</span>連敗中
+          </div>
+        </div>
+
+        <div class="bet-amount-title">今回の賭け金(円)</div>
+        <div class="bet-amount-large" id="currentBetAmountText">
+          ¥100<span class="yen"></span>
+        </div>
+
+        <div class="main-meta-grid">
+          <div class="meta-box">
+            <div class="meta-label">的中時 必要合成オッズ</div>
+            <div class="meta-value odds-highlight" id="currentOddsText">1.00</div>
+          </div>
+          <div class="meta-box">
+            <div class="meta-label">現在の累計収支</div>
+            <div class="meta-value" id="mainCumulativeProfitText">±0円</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. 操作ボタン -->
+      <div class="actions-container">
+        <div class="primary-buttons-row">
+          <button type="button" class="btn btn-hit" id="btnHit">
+            <span>🎯 的中</span>
+            <span class="subtext">払戻金額を入力</span>
+          </button>
+          <button type="button" class="btn btn-miss" id="btnMiss">
+            <span>✕ 不的中</span>
+            <span class="subtext">次の回数に進む</span>
+          </button>
+        </div>
+
+        <div class="secondary-buttons-row">
+          <button type="button" class="btn btn-secondary" id="btnUndo" title="直前の1件を取り消します">
+            ↩ 1つ戻す
+          </button>
+          <button type="button" class="btn btn-secondary" id="btnResetModalOpen">
+            🔄 リセット
+          </button>
+          <button type="button" class="btn btn-secondary" id="btnExportCsv">
+            📥 CSV出力
+          </button>
+        </div>
+      </div>
+
+      <!-- 5. 成績サマリー -->
+      <div class="card">
+        <div class="section-header">
+          <div class="section-title">📊 成績サマリー</div>
+        </div>
+        <div class="summary-grid">
+          <div class="summary-stat-box">
+            <div class="stat-label">総投資額</div>
+            <div class="stat-value" id="statTotalInvested">0円</div>
+          </div>
+          <div class="summary-stat-box">
+            <div class="stat-label">総払戻額</div>
+            <div class="stat-value" id="statTotalPayout">0円</div>
+          </div>
+          <div class="summary-stat-box highlight-box">
+            <div class="stat-label">累計収支</div>
+            <div class="stat-value" id="statCumulativeProfit">±0円</div>
+          </div>
+          <div class="summary-stat-box highlight-box">
+            <div class="stat-label">回収率</div>
+            <div class="stat-value" id="statRecoveryRate">-</div>
+          </div>
+          <div class="summary-stat-box">
+            <div class="stat-label">的中率 (的中/総数)</div>
+            <div class="stat-value" id="statHitRate">- (0/0)</div>
+          </div>
+          <div class="summary-stat-box">
+            <div class="stat-label">現在の連敗数</div>
+            <div class="stat-value" id="statCurrentLosses">0回</div>
+          </div>
+          <div class="summary-stat-box">
+            <div class="stat-label">最大連敗数</div>
+            <div class="stat-value" id="statMaxLosses">0回</div>
+          </div>
+          <div class="summary-stat-box">
+            <div class="stat-label">最大到達回数</div>
+            <div class="stat-value" id="statMaxStep">1回目</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. 予定表 (1〜22回目) -->
+      <details class="card" id="scheduleCard" open style="padding: 14px;">
+        <summary style="cursor: pointer; user-select: none; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: space-between;">
+          <span id="scheduleCardTitle">📋 ココモ法予定表: No.1_10%係数</span>
+          <span style="font-size: 11px; color: var(--text-secondary);">タップで開閉</span>
+        </summary>
+        <div style="margin-top: 12px;">
+          <div class="table-container">
+            <table class="data-table" id="scheduleTable">
+              <thead>
+                <tr>
+                  <th style="width: 50px;">回数</th>
+                  <th>通常ココモ</th>
+                  <th>係数（%）</th>
+                  <th>賭け金(円)</th>
+                  <th>累計投資額</th>
+                  <th>必要合成オッズ</th>
+                </tr>
+              </thead>
+              <tbody id="scheduleTableBody">
+                <!-- JavaScriptで1〜22回目を動的生成 -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+
+      <!-- 7. 履歴エリア -->
+      <div class="card">
+        <div class="section-header">
+          <div class="section-title">
+            <span>📜 ベット履歴</span>
+            <span id="historyCountBadge" style="font-size: 11px; color: var(--text-muted); font-weight: 600;">(0件)</span>
+          </div>
+        </div>
+        <div class="table-container history-table-container">
+          <table class="data-table history-table">
+            <thead>
+              <tr>
+                <th style="width: 40px;">No.</th>
+                <th style="text-align: left; width: 110px;">日時</th>
+                <th style="width: 50px;">回数</th>
+                <th>賭け金</th>
+                <th style="text-align: center; width: 70px;">結果</th>
+                <th>払戻金額</th>
+                <th>収支</th>
+                <th>累計収支</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody">
+              <!-- JavaScriptで履歴を動的生成 -->
+            </tbody>
+          </table>
+          <div class="history-empty-state" id="historyEmptyState">
+            まだベット履歴がありません。<br />「的中」または「不的中」を押して記録を開始してください。
+          </div>
+        </div>
+      </div>
+
+      <!-- フッター -->
+      <footer class="app-footer">
+        資金管理の補助ツールです。的中を保証するものではありません。<br />
+        投票は自己責任で、無理のない範囲で行ってください。
+      </footer>
+
+    </div>
+
+    <!-- モーダル: 的中時 払戻金額入力 -->
+    <div class="modal-backdrop" id="modalHitBackdrop">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title">🎯 的中！払戻金額の入力</div>
+          <button type="button" class="modal-close-btn" id="modalHitCloseBtn">&times;</button>
+        </div>
+
+        <div>
+          <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">
+            現在の回数: <strong id="modalHitStepText" style="color: #ffffff;">-</strong> / 賭け金: <strong id="modalHitBetText" style="color: #38bdf8;">-</strong>
+          </div>
+
+          <div class="payout-input-group">
+            <label for="inputPayoutAmount" style="font-size: 12px; font-weight: 700; color: var(--text-secondary);">払戻金額</label>
+            <div class="payout-input-wrapper">
+              <input type="number" id="inputPayoutAmount" placeholder="0" min="1" step="10" inputmode="numeric" class="payout-input" />
+              <span class="payout-unit">円</span>
+            </div>
+            <div class="payout-error" id="modalHitError">※ 1円以上の払戻金額を入力してください</div>
+          </div>
+        </div>
+
+        <!-- クイック加算チップ -->
+        <div class="quick-chips-row">
+          <button type="button" class="chip-btn" onclick="addPayoutChip(1000)">+1,000円</button>
+          <button type="button" class="chip-btn" onclick="addPayoutChip(5000)">+5,000円</button>
+          <button type="button" class="chip-btn" onclick="addPayoutChip(10000)">+10,000円</button>
+          <button type="button" class="chip-btn" onclick="clearPayoutInput()" style="margin-left: auto; color: #f87171;">クリア</button>
+        </div>
+
+        <!-- リアルタイムプレビュー -->
+        <div class="payout-preview-box">
+          <div class="preview-row">
+            <span style="color: var(--text-secondary);">このレースの収支:</span>
+            <span class="preview-val" id="modalProfitPreview">±0円</span>
+          </div>
+          <div class="preview-row">
+            <span style="color: var(--text-secondary);">次回ステップ:</span>
+            <span class="preview-val" id="modalNextStepPreview" style="color: #38bdf8;">1回目</span>
+          </div>
+        </div>
+
+        <div class="payout-warning" id="modalHitWarning">
+          ⚠️ 払戻金額が賭け金を下回っています（トリガミ）
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-cancel" id="btnModalHitCancel">キャンセル</button>
+          <button type="button" class="btn btn-confirm" id="btnModalHitConfirm">確定して記録</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- モーダル: リセット確認 -->
+    <div class="modal-backdrop" id="modalResetBackdrop">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title">🔄 リセットの確認</div>
+          <button type="button" class="modal-close-btn" id="modalResetCloseBtn">&times;</button>
+        </div>
+
+        <div class="reset-options-list">
+          <button type="button" class="btn btn-reset-option" id="btnResetStepOnly">
+            <div class="option-title">1. 回数のみリセット</div>
+            <div class="option-desc">現在の回数を1回目に戻します。過去の履歴・累計収支は保持されます（仕切り直し）。</div>
+          </button>
+
+          <button type="button" class="btn btn-reset-option danger" id="btnResetAllPrompt">
+            <div class="option-title">2. すべて消去</div>
+            <div class="option-desc">履歴・回数・成績を完全に初期化します（設定値は保持されます）。</div>
+          </button>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 6px;">
+          <button type="button" class="btn btn-cancel" id="btnModalResetCancel">キャンセル</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- モーダル: 全消去の最終確認 -->
+    <div class="modal-backdrop" id="modalConfirmAllBackdrop">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title" style="color: #f87171;">⚠️ すべて消去の最終確認</div>
+          <button type="button" class="modal-close-btn" id="modalConfirmAllCloseBtn">&times;</button>
+        </div>
+
+        <div style="font-size: 13px; color: var(--text-primary); line-height: 1.6;">
+          履歴が完全に削除されます。<br />
+          <strong>CSV出力はお済みですか？</strong><br />
+          <span style="font-size: 11px; color: var(--text-muted);">消去したデータは元に戻せません。</span>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-cancel" id="btnConfirmAllCancel">戻る</button>
+          <button type="button" class="btn" id="btnConfirmAllExecute" style="background: #dc2626; color: #fff;">完全に消去する</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==========================================================================
+         JavaScript ロジック (フレームワーク・外部ライブラリ不使用)
+         ========================================================================== -->
+    <script>
+      /**
+       * 係数ココモ法 ベット管理ツール
+       * - No.1_10%係数: 通常ココモ N(k) × 係数% を100円単位で切り上げ
+       * - No.2_合成オッズ4倍以上: 必要合成オッズが約4.0倍以下になるよう賭け金を算出 (T(k-1)/3を100円切上)
+       */
+      (function() {
+        'use strict';
+
+        const STORAGE_KEY = 'boatrace_cocomo_v2';
+
+        // アプリケーションの状態 (State)
+        let state = {
+          settings: {
+            tableType: 'no1',        // 'no1' (No.1_10%係数) または 'no2' (No.2_合成オッズ4倍以上)
+            initialAmount: 100,      // 初回金額 (円)
+            coefficientPercent: 10,  // 係数 (%) - No.1用
+            returnSteps: 3           // 的中時の戻り回数
+          },
+          currentStep: 1,            // 現在の回数 (1, 2, 3...)
+          history: []                // ベット履歴配列
+        };
+
+        // DOM要素の参照キャッシュ
+        const dom = {
+          tabPlanNo1: document.getElementById('tabPlanNo1'),
+          tabPlanNo2: document.getElementById('tabPlanNo2'),
+          inputInitialAmount: document.getElementById('inputInitialAmount'),
+          inputCoefficient: document.getElementById('inputCoefficient'),
+          labelCoefficient: document.getElementById('labelCoefficient'),
+          inputReturnSteps: document.getElementById('inputReturnSteps'),
+          planNo2Note: document.getElementById('planNo2Note'),
+          settingsNote: document.getElementById('settingsNote'),
+          currentStepText: document.getElementById('currentStepText'),
+          mainPlanIndicator: document.getElementById('mainPlanIndicator'),
+          currentStreakBadge: document.getElementById('currentStreakBadge'),
+          currentStreakText: document.getElementById('currentStreakText'),
+          currentBetAmountText: document.getElementById('currentBetAmountText'),
+          currentOddsText: document.getElementById('currentOddsText'),
+          mainCumulativeProfitText: document.getElementById('mainCumulativeProfitText'),
+          dangerBanner: document.getElementById('dangerBanner'),
+          warningBanner: document.getElementById('warningBanner'),
+          storageAlert: document.getElementById('storageAlert'),
+          btnHit: document.getElementById('btnHit'),
+          btnMiss: document.getElementById('btnMiss'),
+          btnUndo: document.getElementById('btnUndo'),
+          btnResetModalOpen: document.getElementById('btnResetModalOpen'),
+          btnExportCsv: document.getElementById('btnExportCsv'),
+          statTotalInvested: document.getElementById('statTotalInvested'),
+          statTotalPayout: document.getElementById('statTotalPayout'),
+          statCumulativeProfit: document.getElementById('statCumulativeProfit'),
+          statRecoveryRate: document.getElementById('statRecoveryRate'),
+          statHitRate: document.getElementById('statHitRate'),
+          statCurrentLosses: document.getElementById('statCurrentLosses'),
+          statMaxLosses: document.getElementById('statMaxLosses'),
+          statMaxStep: document.getElementById('statMaxStep'),
+          scheduleCardTitle: document.getElementById('scheduleCardTitle'),
+          scheduleTableBody: document.getElementById('scheduleTableBody'),
+          historyTableBody: document.getElementById('historyTableBody'),
+          historyEmptyState: document.getElementById('historyEmptyState'),
+          historyCountBadge: document.getElementById('historyCountBadge'),
+          
+          // 的中モーダル
+          modalHitBackdrop: document.getElementById('modalHitBackdrop'),
+          modalHitCloseBtn: document.getElementById('modalHitCloseBtn'),
+          modalHitStepText: document.getElementById('modalHitStepText'),
+          modalHitBetText: document.getElementById('modalHitBetText'),
+          inputPayoutAmount: document.getElementById('inputPayoutAmount'),
+          modalProfitPreview: document.getElementById('modalProfitPreview'),
+          modalNextStepPreview: document.getElementById('modalNextStepPreview'),
+          modalHitWarning: document.getElementById('modalHitWarning'),
+          modalHitError: document.getElementById('modalHitError'),
+          btnModalHitCancel: document.getElementById('btnModalHitCancel'),
+          btnModalHitConfirm: document.getElementById('btnModalHitConfirm'),
+
+          // リセットモーダル
+          modalResetBackdrop: document.getElementById('modalResetBackdrop'),
+          modalResetCloseBtn: document.getElementById('modalResetCloseBtn'),
+          btnResetStepOnly: document.getElementById('btnResetStepOnly'),
+          btnResetAllPrompt: document.getElementById('btnResetAllPrompt'),
+          btnModalResetCancel: document.getElementById('btnModalResetCancel'),
+
+          // 全消去確認モーダル
+          modalConfirmAllBackdrop: document.getElementById('modalConfirmAllBackdrop'),
+          modalConfirmAllCloseBtn: document.getElementById('modalConfirmAllCloseBtn'),
+          btnConfirmAllCancel: document.getElementById('btnConfirmAllCancel'),
+          btnConfirmAllExecute: document.getElementById('btnConfirmAllExecute')
+        };
+
+        // ======================================================================
+        // 1. 計算ロジック
+        // ======================================================================
+
+        /**
+         * 通常ココモ数列 N(k)
+         * N(1) = 初回金額, N(2) = 初回金額, N(k) = N(k-1) + N(k-2) (k >= 3)
+         */
+        function calcNormalCocomo(k, initialAmount) {
+          if (k <= 0) return 0;
+          if (k === 1 || k === 2) return initialAmount;
+          let a = initialAmount;
+          let b = initialAmount;
+          for (let i = 3; i <= k; i++) {
+            const next = a + b;
+            a = b;
+            b = next;
+          }
+          return b;
+        }
+
+        /**
+         * No.1_10%係数:
+         * 賭け金 C(k) = max(100, ceil(N(k) × 係数% ÷ 100 ÷ 100) × 100)
+         */
+        function calcNo1Row(k, initialAmount, coefficientPercent) {
+          const normal = calcNormalCocomo(k, initialAmount);
+          const coeffVal = (normal * coefficientPercent) / 100;
+          const betAmount = Math.max(100, Math.ceil(coeffVal / 100) * 100);
+
+          let totalInvestment = 0;
+          for (let i = 1; i <= k; i++) {
+            const norm = calcNormalCocomo(i, initialAmount);
+            const cv = (norm * coefficientPercent) / 100;
+            totalInvestment += Math.max(100, Math.ceil(cv / 100) * 100);
+          }
+
+          const requiredOdds = betAmount > 0 ? (totalInvestment / betAmount).toFixed(2) : '0.00';
+          const coeffPercentStr = `${coefficientPercent}%`;
+
+          return {
+            normal,
+            coeffPercentStr,
+            betAmount,
+            totalInvestment,
+            requiredOdds
+          };
+        }
+
+        /**
+         * No.2_合成オッズ4倍以上 (添付画像の独自係数テーブル):
+         * C(1) = 初回金額, T(1) = 初回金額
+         * k >= 2 のとき: C(k) = max(初回金額, ceil(T(k-1) / 3 / 100) * 100)
+         * T(k) = T(k-1) + C(k)
+         * これにより常に T(k)/C(k) <= 4.00 (必要合成オッズ4倍以下) を維持
+         */
+        function calcNo2Row(k, initialAmount) {
+          let T = 0;
+          let C = initialAmount;
+          let prevT = 0;
+
+          for (let i = 1; i <= k; i++) {
+            if (i === 1) {
+              C = initialAmount;
+              T = initialAmount;
+            } else {
+              C = Math.max(initialAmount, Math.ceil((prevT / 3) / 100) * 100);
+              T = prevT + C;
+            }
+            prevT = T;
+          }
+
+          const normal = calcNormalCocomo(k, initialAmount);
+          const requiredOdds = C > 0 ? (T / C).toFixed(2) : '0.00';
+          
+          // 通常ココモに対する実質係数（%）
+          const pctVal = (C / normal) * 100;
+          const coeffPercentStr = (pctVal >= 10 ? pctVal.toFixed(1) : pctVal.toFixed(2)) + '%';
+
+          return {
+            normal,
+            coeffPercentStr,
+            betAmount: C,
+            totalInvestment: T,
+            requiredOdds
+          };
+        }
+
+        /**
+         * 現在選択されている設定に応じた指定ステップの計算値を取得
+         */
+        function getStepData(k, settings) {
+          if (settings.tableType === 'no2') {
+            return calcNo2Row(k, settings.initialAmount);
+          }
+          return calcNo1Row(k, settings.initialAmount, settings.coefficientPercent);
+        }
+
+        // ======================================================================
+        // 2. フォーマット関数
+        // ======================================================================
+
+        function formatCurrency(num) {
+          return Number(num).toLocaleString('ja-JP') + '円';
+        }
+
+        function formatSignedCurrency(num) {
+          const val = Number(num);
+          if (val > 0) {
+            return '+' + val.toLocaleString('ja-JP') + '円';
+          } else if (val < 0) {
+            return '−' + Math.abs(val).toLocaleString('ja-JP') + '円';
+          }
+          return '±0円';
+        }
+
+        function formatDateTime(d) {
+          const date = (d instanceof Date) ? d : new Date(d);
+          const y = date.getFullYear();
+          const m = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const h = String(date.getHours()).padStart(2, '0');
+          const min = String(date.getMinutes()).padStart(2, '0');
+          return `${y}/${m}/${day} ${h}:${min}`;
+        }
+
+        // ======================================================================
+        // 3. データ保存 (localStorage)
+        // ======================================================================
+
+        function loadFromStorage() {
+          try {
+            // v2または旧v1からの読み込み互換
+            const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('boatrace_cocomo_v1');
+            if (!raw) return false;
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') {
+              if (parsed.settings) {
+                state.settings.tableType = parsed.settings.tableType === 'no2' ? 'no2' : 'no1';
+                state.settings.initialAmount = Number(parsed.settings.initialAmount) || 100;
+                state.settings.coefficientPercent = Number(parsed.settings.coefficientPercent) || 10;
+                state.settings.returnSteps = Number(parsed.settings.returnSteps) || 3;
+              }
+              state.currentStep = Number(parsed.currentStep) || 1;
+              state.history = Array.isArray(parsed.history) ? parsed.history : [];
+              return true;
+            }
+          } catch (e) {
+            console.warn('localStorage is unavailable or failed to parse:', e);
+            if (dom.storageAlert) dom.storageAlert.style.display = 'flex';
+          }
+          return false;
+        }
+
+        function saveToStorage() {
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          } catch (e) {
+            console.warn('Failed to save to localStorage:', e);
+            if (dom.storageAlert) dom.storageAlert.style.display = 'flex';
+          }
+        }
+
+        // ======================================================================
+        // 4. UIレンダリング
+        // ======================================================================
+
+        function render() {
+          const { settings, currentStep, history } = state;
+          const { tableType, initialAmount, coefficientPercent, returnSteps } = settings;
+
+          // 予定表タブのアクティブ状態
+          const isNo2 = (tableType === 'no2');
+          dom.tabPlanNo1.classList.toggle('active', !isNo2);
+          dom.tabPlanNo2.classList.toggle('active', isNo2);
+
+          // 設定フォームの同期
+          dom.inputInitialAmount.value = initialAmount;
+          dom.inputCoefficient.value = coefficientPercent;
+          dom.inputReturnSteps.value = returnSteps;
+
+          // No.2選択時の係数入力制御
+          if (isNo2) {
+            dom.inputCoefficient.disabled = true;
+            dom.inputCoefficient.title = 'No.2_合成オッズ4倍以上では独自係数が自動適用されます';
+            dom.planNo2Note.style.display = 'block';
+          } else {
+            dom.inputCoefficient.disabled = false;
+            dom.inputCoefficient.title = '';
+            dom.planNo2Note.style.display = 'none';
+          }
+
+          // ベット履歴が1件でもある場合、注記を表示
+          const hasBetRecords = history.some(item => item.type !== 'reset');
+          dom.settingsNote.style.display = hasBetRecords ? 'block' : 'none';
+
+          // 現在のステップ計算値
+          const stepData = getStepData(currentStep, settings);
+          const currentPlanTitle = isNo2 ? 'No.2_合成オッズ4倍以上' : 'No.1_10%係数';
+
+          dom.currentStepText.textContent = currentStep;
+          dom.mainPlanIndicator.textContent = currentPlanTitle;
+          dom.currentBetAmountText.innerHTML = `¥${stepData.betAmount.toLocaleString('ja-JP')}<span class="yen"></span>`;
+          dom.currentOddsText.textContent = stepData.requiredOdds;
+
+          // 警告バナー (12回目以上・15回目以降)
+          if (currentStep >= 15) {
+            dom.dangerBanner.style.display = 'flex';
+            dom.warningBanner.style.display = 'none';
+          } else if (currentStep >= 12) {
+            dom.dangerBanner.style.display = 'none';
+            dom.warningBanner.style.display = 'flex';
+          } else {
+            dom.dangerBanner.style.display = 'none';
+            dom.warningBanner.style.display = 'none';
+          }
+
+          // 連敗数と統計の計算
+          const stats = calculateStats();
+
+          // メイン表示の累計収支
+          dom.mainCumulativeProfitText.textContent = formatSignedCurrency(stats.cumulativeProfit);
+          dom.mainCumulativeProfitText.className = 'meta-value ' + (
+            stats.cumulativeProfit > 0 ? 'profit-plus' : (stats.cumulativeProfit < 0 ? 'profit-minus' : 'profit-zero')
+          );
+
+          // 連敗中バッジ
+          if (stats.currentLosingStreak > 0) {
+            dom.currentStreakBadge.style.display = 'inline-flex';
+            dom.currentStreakText.textContent = stats.currentLosingStreak;
+          } else {
+            dom.currentStreakBadge.style.display = 'none';
+          }
+
+          // 成績サマリーの更新
+          dom.statTotalInvested.textContent = formatCurrency(stats.totalInvested);
+          dom.statTotalPayout.textContent = formatCurrency(stats.totalPayout);
+          dom.statCumulativeProfit.textContent = formatSignedCurrency(stats.cumulativeProfit);
+          dom.statCumulativeProfit.className = 'stat-value ' + (
+            stats.cumulativeProfit > 0 ? 'profit-plus' : (stats.cumulativeProfit < 0 ? 'profit-minus' : 'profit-zero')
+          );
+          
+          dom.statRecoveryRate.textContent = stats.totalInvested > 0
+            ? `${(stats.totalPayout / stats.totalInvested * 100).toFixed(1)}%`
+            : '-';
+          
+          dom.statHitRate.textContent = stats.totalBets > 0
+            ? `${(stats.hitCount / stats.totalBets * 100).toFixed(1)}% (${stats.hitCount}/${stats.totalBets})`
+            : '- (0/0)';
+
+          dom.statCurrentLosses.textContent = `${stats.currentLosingStreak}回`;
+          dom.statMaxLosses.textContent = `${stats.maxLosingStreak}回`;
+          dom.statMaxStep.textContent = `${stats.maxStep}回目`;
+
+          // ボタン状態
+          dom.btnUndo.disabled = history.length === 0;
+          dom.btnExportCsv.disabled = history.length === 0;
+
+          // 予定表カードタイトルの更新
+          dom.scheduleCardTitle.textContent = `📋 ココモ法予定表: ${currentPlanTitle}`;
+
+          // 予定表の描画 (1〜22回目)
+          renderScheduleTable();
+
+          // 履歴の描画
+          renderHistoryTable();
+        }
+
+        /**
+         * 統計情報の集計
+         */
+        function calculateStats() {
+          const { history, currentStep } = state;
+          let totalInvested = 0;
+          let totalPayout = 0;
+          let hitCount = 0;
+          let totalBets = 0;
+          let currentLosingStreak = 0;
+          let maxLosingStreak = 0;
+          let tempLosingStreak = 0;
+          let maxStep = currentStep;
+
+          // 履歴を古い順(No昇順)に走査して集計
+          const sorted = [...history].sort((a, b) => a.no - b.no);
+
+          for (const item of sorted) {
+            if (item.type === 'reset') {
+              tempLosingStreak = 0;
+              continue;
+            }
+
+            totalBets++;
+            totalInvested += item.betAmount;
+            totalPayout += item.payout;
+
+            if (item.step && item.step > maxStep) {
+              maxStep = item.step;
+            }
+
+            if (item.result === 'hit') {
+              hitCount++;
+              tempLosingStreak = 0;
+            } else if (item.result === 'miss') {
+              tempLosingStreak++;
+              if (tempLosingStreak > maxLosingStreak) {
+                maxLosingStreak = tempLosingStreak;
+              }
+            }
+          }
+
+          // 現在の連敗数を最新からカウント
+          currentLosingStreak = 0;
+          for (let i = history.length - 1; i >= 0; i--) {
+            const item = history[i];
+            if (item.type === 'reset') break;
+            if (item.result === 'miss') {
+              currentLosingStreak++;
+            } else {
+              break;
+            }
+          }
+
+          const cumulativeProfit = totalPayout - totalInvested;
+
+          return {
+            totalInvested,
+            totalPayout,
+            cumulativeProfit,
+            hitCount,
+            totalBets,
+            currentLosingStreak,
+            maxLosingStreak,
+            maxStep
+          };
+        }
+
+        /**
+         * 予定表テーブル (1〜22回目) の描画
+         * 列名称: 回数 / 通常ココモ / 係数（%） / 賭け金(円) / 累計投資額 / 必要合成オッズ
+         */
+        function renderScheduleTable() {
+          const currentStep = state.currentStep;
+          let html = '';
+
+          // 添付画像に合わせて1〜22回目を網羅表示
+          for (let k = 1; k <= 22; k++) {
+            const data = getStepData(k, state.settings);
+
+            const isActive = (k === currentStep);
+            const rowClass = isActive ? 'row-active' : '';
+            const badge = isActive ? '<span class="badge-current-row">現在</span>' : '';
+
+            html += `
+              <tr class="${rowClass}">
+                <td style="text-align: center; font-weight: 700;">${badge}${k}</td>
+                <td>¥${data.normal.toLocaleString('ja-JP')}</td>
+                <td style="color: #cbd5e1; font-weight: 600;">${data.coeffPercentStr}</td>
+                <td style="font-weight: 700; color: #38bdf8;">¥${data.betAmount.toLocaleString('ja-JP')}</td>
+                <td>¥${data.totalInvestment.toLocaleString('ja-JP')}</td>
+                <td style="color: #facc15; font-weight: 700;">${data.requiredOdds}</td>
+              </tr>
+            `;
+          }
+
+          dom.scheduleTableBody.innerHTML = html;
+        }
+
+        /**
+         * ベット履歴テーブルの描画 (新しい順)
+         */
+        function renderHistoryTable() {
+          const { history } = state;
+          dom.historyCountBadge.textContent = `(${history.length}件)`;
+
+          if (history.length === 0) {
+            dom.historyTableBody.innerHTML = '';
+            dom.historyEmptyState.style.display = 'block';
+            return;
+          }
+
+          dom.historyEmptyState.style.display = 'none';
+
+          // 新しい順 (降順) に表示
+          const reversed = [...history].reverse();
+          let html = '';
+
+          for (const item of reversed) {
+            if (item.type === 'reset') {
+              html += `
+                <tr class="row-reset">
+                  <td colspan="8">--- リセット (${item.date}) ---</td>
+                </tr>
+              `;
+              continue;
+            }
+
+            const isHit = item.result === 'hit';
+            const rowClass = isHit ? 'row-hit' : 'row-miss';
+            const tagClass = isHit ? 'tag-hit' : 'tag-miss';
+            const resultLabel = isHit ? '的中' : '不的中';
+
+            const profitClass = item.profit > 0 ? 'profit-plus' : (item.profit < 0 ? 'profit-minus' : 'profit-zero');
+            const cumClass = item.cumulativeProfit > 0 ? 'profit-plus' : (item.cumulativeProfit < 0 ? 'profit-minus' : 'profit-zero');
+
+            html += `
+              <tr class="${rowClass}">
+                <td style="text-align: center; font-weight: 700;">${item.no}</td>
+                <td style="text-align: left; font-size: 11px; color: var(--text-secondary);">${item.date}</td>
+                <td style="text-align: center; font-weight: 700;">${item.step}</td>
+                <td style="font-weight: 600;">¥${item.betAmount.toLocaleString('ja-JP')}</td>
+                <td style="text-align: center;">
+                  <span class="tag-result ${tagClass}">${resultLabel}</span>
+                </td>
+                <td>${item.payout > 0 ? '¥' + item.payout.toLocaleString('ja-JP') : '-'}</td>
+                <td class="${profitClass}" style="font-weight: 700;">${formatSignedCurrency(item.profit)}</td>
+                <td class="${cumClass}" style="font-weight: 700;">${formatSignedCurrency(item.cumulativeProfit)}</td>
+              </tr>
+            `;
+          }
+
+          dom.historyTableBody.innerHTML = html;
+        }
+
+        // ======================================================================
+        // 5. 操作アクション (的中・不的中・取り消し・リセット・CSV)
+        // ======================================================================
+
+        /**
+         * 不的中を記録
+         */
+        function recordMiss() {
+          const currentStep = state.currentStep;
+          const stepData = getStepData(currentStep, state.settings);
+          const betAmount = stepData.betAmount;
+          const payout = 0;
+          const profit = -betAmount;
+
+          const statsBefore = calculateStats();
+          const nextCumulativeProfit = statsBefore.cumulativeProfit + profit;
+
+          const record = {
+            id: 'bet_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+            no: state.history.length + 1,
+            date: formatDateTime(new Date()),
+            type: 'bet',
+            step: currentStep,
+            betAmount: betAmount,
+            result: 'miss',
+            payout: payout,
+            profit: profit,
+            cumulativeProfit: nextCumulativeProfit,
+            prevStep: currentStep,
+            planType: state.settings.tableType
+          };
+
+          state.history.push(record);
+          state.currentStep = currentStep + 1; // 回数を+1
+
+          saveToStorage();
+          render();
+        }
+
+        /**
+         * 的中ダイアログを開く
+         */
+        function openHitModal() {
+          const currentStep = state.currentStep;
+          const stepData = getStepData(currentStep, state.settings);
+          const betAmount = stepData.betAmount;
+          
+          dom.modalHitStepText.textContent = `${currentStep}回目`;
+          dom.modalHitBetText.textContent = formatCurrency(betAmount);
+          dom.inputPayoutAmount.value = '';
+          dom.modalHitError.style.display = 'none';
+          dom.modalHitWarning.style.display = 'none';
+          
+          updateHitModalPreview(0);
+
+          dom.modalHitBackdrop.classList.add('open');
+          setTimeout(() => {
+            dom.inputPayoutAmount.focus();
+          }, 100);
+        }
+
+        function closeHitModal() {
+          dom.modalHitBackdrop.classList.remove('open');
+        }
+
+        /**
+         * 的中ダイアログのプレビュー更新
+         */
+        function updateHitModalPreview(payout) {
+          const currentStep = state.currentStep;
+          const stepData = getStepData(currentStep, state.settings);
+          const betAmount = stepData.betAmount;
+          const profit = payout - betAmount;
+
+          // 収支プレビュー
+          dom.modalProfitPreview.textContent = formatSignedCurrency(profit);
+          dom.modalProfitPreview.className = 'preview-val ' + (
+            profit > 0 ? 'profit-plus' : (profit < 0 ? 'profit-minus' : 'profit-zero')
+          );
+
+          // 次回ステッププレビュー: 回数を「戻り回数」だけ戻す(最小1)
+          const nextStep = Math.max(1, currentStep - state.settings.returnSteps);
+          dom.modalNextStepPreview.textContent = `${nextStep}回目`;
+
+          // トリガミ警告 (払戻金額が賭け金を下回っている場合)
+          if (payout > 0 && payout < betAmount) {
+            dom.modalHitWarning.style.display = 'block';
+          } else {
+            dom.modalHitWarning.style.display = 'none';
+          }
+
+          if (payout > 0) {
+            dom.modalHitError.style.display = 'none';
+          }
+        }
+
+        /**
+         * 的中を確定して記録
+         */
+        function confirmHit() {
+          const rawVal = dom.inputPayoutAmount.value.trim();
+          const payout = Number(rawVal);
+
+          if (!rawVal || isNaN(payout) || payout <= 0) {
+            dom.modalHitError.style.display = 'block';
+            dom.inputPayoutAmount.focus();
+            return;
+          }
+
+          const currentStep = state.currentStep;
+          const stepData = getStepData(currentStep, state.settings);
+          const betAmount = stepData.betAmount;
+          const profit = payout - betAmount;
+
+          const statsBefore = calculateStats();
+          const nextCumulativeProfit = statsBefore.cumulativeProfit + profit;
+
+          const record = {
+            id: 'bet_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+            no: state.history.length + 1,
+            date: formatDateTime(new Date()),
+            type: 'bet',
+            step: currentStep,
+            betAmount: betAmount,
+            result: 'hit',
+            payout: payout,
+            profit: profit,
+            cumulativeProfit: nextCumulativeProfit,
+            prevStep: currentStep,
+            planType: state.settings.tableType
+          };
+
+          state.history.push(record);
+          // 状態遷移: 的中 → 回数を「戻り回数」だけ戻す(最小は1回目)
+          state.currentStep = Math.max(1, currentStep - state.settings.returnSteps);
+
+          saveToStorage();
+          closeHitModal();
+          render();
+        }
+
+        // クイック入力チップ用グローバル関数
+        window.addPayoutChip = function(amount) {
+          const current = Number(dom.inputPayoutAmount.value) || 0;
+          const next = current + amount;
+          dom.inputPayoutAmount.value = next;
+          updateHitModalPreview(next);
+        };
+
+        window.clearPayoutInput = function() {
+          dom.inputPayoutAmount.value = '';
+          updateHitModalPreview(0);
+          dom.inputPayoutAmount.focus();
+        };
+
+        /**
+         * 1つ戻す (取り消し)
+         */
+        function undoLast() {
+          if (state.history.length === 0) return;
+
+          const removed = state.history.pop();
+          if (removed) {
+            if (removed.type === 'reset') {
+              if (removed.prevStep) {
+                state.currentStep = removed.prevStep;
+              }
+            } else if (removed.prevStep !== undefined) {
+              state.currentStep = removed.prevStep;
+            }
+          }
+
+          // 履歴のNo.と累計収支を再計算
+          recalculateCumulativeHistory();
+
+          saveToStorage();
+          render();
+        }
+
+        /**
+         * 履歴の連番と累計収支を整合性維持のために再計算
+         */
+        function recalculateCumulativeHistory() {
+          let runningCum = 0;
+          for (let i = 0; i < state.history.length; i++) {
+            const item = state.history[i];
+            item.no = i + 1;
+            if (item.type !== 'reset') {
+              runningCum += item.profit;
+            }
+            item.cumulativeProfit = runningCum;
+          }
+        }
+
+        /**
+         * リセット: 回数のみリセット (1回目に戻し、履歴にリセット区切りを挿入)
+         */
+        function resetStepOnly() {
+          const prevStep = state.currentStep;
+          state.currentStep = 1;
+
+          const stats = calculateStats();
+          const resetRecord = {
+            id: 'reset_' + Date.now(),
+            no: state.history.length + 1,
+            date: formatDateTime(new Date()),
+            type: 'reset',
+            step: '-',
+            betAmount: 0,
+            result: 'reset',
+            payout: 0,
+            profit: 0,
+            cumulativeProfit: stats.cumulativeProfit,
+            prevStep: prevStep
+          };
+
+          state.history.push(resetRecord);
+
+          saveToStorage();
+          dom.modalResetBackdrop.classList.remove('open');
+          render();
+        }
+
+        /**
+         * リセット: すべて消去の実行
+         */
+        function executeResetAll() {
+          state.currentStep = 1;
+          state.history = [];
+          saveToStorage();
+
+          dom.modalConfirmAllBackdrop.classList.remove('open');
+          dom.modalResetBackdrop.classList.remove('open');
+          render();
+        }
+
+        /**
+         * CSV出力機能
+         * - UTF-8 (BOM付き)
+         * - ファイル名: cocomo_history_YYYYMMDD_HHmm.csv
+         * - ヘッダー: No,日時,回数,賭け金,結果,払戻金額,収支,累計収支
+         */
+        function exportCsv() {
+          if (state.history.length === 0) {
+            alert('出力する履歴がありません。');
+            return;
+          }
+
+          const rows = [
+            ['No', '日時', '回数', '賭け金', '結果', '払戻金額', '収支', '累計収支']
+          ];
+
+          const sorted = [...state.history].sort((a, b) => a.no - b.no);
+
+          for (const item of sorted) {
+            if (item.type === 'reset') {
+              rows.push([
+                item.no,
+                `"${item.date}"`,
+                '-',
+                '',
+                'リセット',
+                '',
+                '',
+                item.cumulativeProfit
+              ]);
+            } else {
+              const resultStr = item.result === 'hit' ? '的中' : '不的中';
+              rows.push([
+                item.no,
+                `"${item.date}"`,
+                item.step,
+                item.betAmount,
+                resultStr,
+                item.payout,
+                item.profit,
+                item.cumulativeProfit
+              ]);
+            }
+          }
+
+          const csvContent = rows.map(r => r.join(',')).join('\r\n');
+          const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+
+          const now = new Date();
+          const y = now.getFullYear();
+          const m = String(now.getMonth() + 1).padStart(2, '0');
+          const d = String(now.getDate()).padStart(2, '0');
+          const h = String(now.getHours()).padStart(2, '0');
+          const min = String(now.getMinutes()).padStart(2, '0');
+          const filename = `cocomo_history_${y}${m}${d}_${h}${min}.csv`;
+
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.setAttribute('download', filename);
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        // ======================================================================
+        // 6. イベントリスナー登録
+        // ======================================================================
+
+        function initEventListeners() {
+          // 予定表タイプの切り替えタブ
+          dom.tabPlanNo1.addEventListener('click', () => {
+            if (state.settings.tableType === 'no1') return;
+            state.settings.tableType = 'no1';
+            saveToStorage();
+            render();
+          });
+
+          dom.tabPlanNo2.addEventListener('click', () => {
+            if (state.settings.tableType === 'no2') return;
+            state.settings.tableType = 'no2';
+            saveToStorage();
+            render();
+          });
+
+          // 設定入力変更 (即時更新)
+          const updateSettings = () => {
+            const initial = Math.max(100, Math.floor(Number(dom.inputInitialAmount.value) || 100));
+            const coeff = Math.max(1, Math.min(100, Number(dom.inputCoefficient.value) || 10));
+            const ret = Math.max(1, Math.min(20, Number(dom.inputReturnSteps.value) || 3));
+
+            state.settings.initialAmount = initial;
+            state.settings.coefficientPercent = coeff;
+            state.settings.returnSteps = ret;
+
+            saveToStorage();
+            render();
+          };
+
+          dom.inputInitialAmount.addEventListener('change', updateSettings);
+          dom.inputCoefficient.addEventListener('change', updateSettings);
+          dom.inputReturnSteps.addEventListener('change', updateSettings);
+
+          // メインボタン
+          dom.btnHit.addEventListener('click', openHitModal);
+          dom.btnMiss.addEventListener('click', recordMiss);
+          dom.btnUndo.addEventListener('click', undoLast);
+          dom.btnExportCsv.addEventListener('click', exportCsv);
+
+          // 的中モーダル
+          dom.modalHitCloseBtn.addEventListener('click', closeHitModal);
+          dom.btnModalHitCancel.addEventListener('click', closeHitModal);
+          dom.btnModalHitConfirm.addEventListener('click', confirmHit);
+
+          dom.inputPayoutAmount.addEventListener('input', (e) => {
+            const val = Number(e.target.value) || 0;
+            updateHitModalPreview(val);
+          });
+          dom.inputPayoutAmount.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              confirmHit();
+            }
+          });
+
+          // リセットモーダル
+          dom.btnResetModalOpen.addEventListener('click', () => {
+            dom.modalResetBackdrop.classList.add('open');
+          });
+          dom.modalResetCloseBtn.addEventListener('click', () => {
+            dom.modalResetBackdrop.classList.remove('open');
+          });
+          dom.btnModalResetCancel.addEventListener('click', () => {
+            dom.modalResetBackdrop.classList.remove('open');
+          });
+
+          dom.btnResetStepOnly.addEventListener('click', resetStepOnly);
+
+          dom.btnResetAllPrompt.addEventListener('click', () => {
+            dom.modalResetBackdrop.classList.remove('open');
+            dom.modalConfirmAllBackdrop.classList.add('open');
+          });
+
+          // 全消去確認モーダル
+          dom.modalConfirmAllCloseBtn.addEventListener('click', () => {
+            dom.modalConfirmAllBackdrop.classList.remove('open');
+          });
+          dom.btnConfirmAllCancel.addEventListener('click', () => {
+            dom.modalConfirmAllBackdrop.classList.remove('open');
+          });
+          dom.btnConfirmAllExecute.addEventListener('click', executeResetAll);
+
+          // 背景タップでモーダルを閉じる
+          [dom.modalHitBackdrop, dom.modalResetBackdrop, dom.modalConfirmAllBackdrop].forEach(modal => {
+            modal.addEventListener('click', (e) => {
+              if (e.target === modal) {
+                modal.classList.remove('open');
+              }
+            });
+          });
+        }
+
+        // ======================================================================
+        // 7. 初期化実行
+        // ======================================================================
+        loadFromStorage();
+        initEventListeners();
+        render();
+
+      })();
+    </script>
+  </body>
+</html>
