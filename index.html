@@ -1149,6 +1149,56 @@
       </div>
     </div>
 
+    <!-- モーダル: 的中時 収支マイナス時の選択確認ポップアップ -->
+    <div class="modal-backdrop" id="modalNegativeHitBackdrop">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title" style="color: #fbbf24;">⚠️ 収支マイナス時の回数選択</div>
+          <button type="button" class="modal-close-btn" id="modalNegativeHitCloseBtn">&times;</button>
+        </div>
+
+        <div style="font-size: 13px; color: var(--text-primary); line-height: 1.6;">
+          的中しましたが、払戻金額が賭け金・累計投資額を下回っているため<strong>収支がマイナス</strong>です。<br />
+          次回のベット回数をどうしますか？
+        </div>
+
+        <div class="payout-preview-box" style="border-color: rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.08);">
+          <div class="preview-row">
+            <span style="color: var(--text-secondary);">今回の賭け金:</span>
+            <span class="preview-val" id="negModalBetText">-</span>
+          </div>
+          <div class="preview-row">
+            <span style="color: var(--text-secondary);">払戻金額:</span>
+            <span class="preview-val" id="negModalPayoutText">-</span>
+          </div>
+          <div class="preview-row">
+            <span style="color: var(--text-secondary);">このレースの収支:</span>
+            <span class="preview-val profit-minus" id="negModalProfitText">-</span>
+          </div>
+          <div class="preview-row" id="negModalCycleRow" style="display: none;">
+            <span style="color: var(--text-secondary);">累計投資に対する差引:</span>
+            <span class="preview-val profit-minus" id="negModalCycleText">-</span>
+          </div>
+        </div>
+
+        <div class="reset-options-list">
+          <button type="button" class="btn btn-reset-option" id="btnNegativeResetStep">
+            <div class="option-title">🔄 回数をリセット (1回目に戻す)</div>
+            <div class="option-desc">この的中の払戻金を記録した上で、次回は1回目（¥100）から仕切り直します。</div>
+          </button>
+
+          <button type="button" class="btn btn-reset-option" id="btnNegativeContinueStep">
+            <div class="option-title">⏩ 継続する (<span id="negContinueStepText">1</span>回目へ戻す)</div>
+            <div class="option-desc">この的中の払戻金を記録した上で、設定の戻り回数分戻してココモ法を継続します。</div>
+          </button>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 4px;">
+          <button type="button" class="btn btn-cancel" id="btnNegativeCancel">戻る (払戻入力を修正)</button>
+        </div>
+      </div>
+    </div>
+
     <!-- モーダル: リセット確認 -->
     <div class="modal-backdrop" id="modalResetBackdrop">
       <div class="modal-card">
@@ -1285,7 +1335,20 @@
           modalConfirmAllBackdrop: document.getElementById('modalConfirmAllBackdrop'),
           modalConfirmAllCloseBtn: document.getElementById('modalConfirmAllCloseBtn'),
           btnConfirmAllCancel: document.getElementById('btnConfirmAllCancel'),
-          btnConfirmAllExecute: document.getElementById('btnConfirmAllExecute')
+          btnConfirmAllExecute: document.getElementById('btnConfirmAllExecute'),
+
+          // 収支マイナス時の選択モーダル
+          modalNegativeHitBackdrop: document.getElementById('modalNegativeHitBackdrop'),
+          modalNegativeHitCloseBtn: document.getElementById('modalNegativeHitCloseBtn'),
+          negModalBetText: document.getElementById('negModalBetText'),
+          negModalPayoutText: document.getElementById('negModalPayoutText'),
+          negModalProfitText: document.getElementById('negModalProfitText'),
+          negModalCycleRow: document.getElementById('negModalCycleRow'),
+          negModalCycleText: document.getElementById('negModalCycleText'),
+          btnNegativeResetStep: document.getElementById('btnNegativeResetStep'),
+          btnNegativeContinueStep: document.getElementById('btnNegativeContinueStep'),
+          negContinueStepText: document.getElementById('negContinueStepText'),
+          btnNegativeCancel: document.getElementById('btnNegativeCancel')
         };
 
         // ======================================================================
@@ -1807,19 +1870,36 @@
           }
         }
 
-        /**
-         * 的中を確定して記録
-         */
-        function confirmHit() {
-          const rawVal = dom.inputPayoutAmount.value.trim();
-          const payout = Number(rawVal);
+        // 収支マイナス時の保留データ
+        let pendingHitData = null;
 
-          if (!rawVal || isNaN(payout) || payout <= 0) {
-            dom.modalHitError.style.display = 'block';
-            dom.inputPayoutAmount.focus();
-            return;
+        function openNegativeHitModal(data) {
+          dom.negModalBetText.textContent = formatCurrency(data.betAmount);
+          dom.negModalPayoutText.textContent = formatCurrency(data.payout);
+          dom.negModalProfitText.textContent = formatSignedCurrency(data.profit);
+
+          const cycleDiff = data.payout - data.totalInvestment;
+          if (cycleDiff < 0 && data.totalInvestment > data.betAmount) {
+            dom.negModalCycleRow.style.display = 'flex';
+            dom.negModalCycleText.textContent = formatSignedCurrency(cycleDiff);
+          } else {
+            dom.negModalCycleRow.style.display = 'none';
           }
 
+          const continueStep = Math.max(1, data.currentStep - state.settings.returnSteps);
+          dom.negContinueStepText.textContent = continueStep;
+
+          dom.modalNegativeHitBackdrop.classList.add('open');
+        }
+
+        function closeNegativeHitModal() {
+          dom.modalNegativeHitBackdrop.classList.remove('open');
+        }
+
+        /**
+         * 的中ベットを実際に履歴へ追加し状態更新
+         */
+        function executeRecordHit(payout, nextStep) {
           const currentStep = state.currentStep;
           const stepData = getStepData(currentStep, state.settings);
           const betAmount = stepData.betAmount;
@@ -1844,12 +1924,52 @@
           };
 
           state.history.push(record);
-          // 状態遷移: 的中 → 回数を「戻り回数」だけ戻す(最小は1回目)
-          state.currentStep = Math.max(1, currentStep - state.settings.returnSteps);
+          state.currentStep = nextStep;
 
           saveToStorage();
-          closeHitModal();
           render();
+        }
+
+        /**
+         * 的中を確定して記録
+         * - 収支がマイナス（払戻金 < 賭け金、または累計投資額未満）の場合は
+         *   回数をリセットするか継続するかを選択できるポップアップを表示
+         */
+        function confirmHit() {
+          const rawVal = dom.inputPayoutAmount.value.trim();
+          const payout = Number(rawVal);
+
+          if (!rawVal || isNaN(payout) || payout <= 0) {
+            dom.modalHitError.style.display = 'block';
+            dom.inputPayoutAmount.focus();
+            return;
+          }
+
+          const currentStep = state.currentStep;
+          const stepData = getStepData(currentStep, state.settings);
+          const betAmount = stepData.betAmount;
+          const profit = payout - betAmount;
+          const totalInvestment = stepData.totalInvestment;
+
+          // 収支がマイナス（払戻金額が賭け金を下回るトリガミ、または連敗累計投資額を下回る場合）
+          const isNegative = (profit < 0) || (payout < totalInvestment);
+
+          if (isNegative) {
+            pendingHitData = {
+              payout: payout,
+              betAmount: betAmount,
+              profit: profit,
+              currentStep: currentStep,
+              totalInvestment: totalInvestment
+            };
+            closeHitModal();
+            openNegativeHitModal(pendingHitData);
+            return;
+          }
+
+          // 収支がプラスの場合は通常通り記録し、戻り回数戻す
+          executeRecordHit(payout, Math.max(1, currentStep - state.settings.returnSteps));
+          closeHitModal();
         }
 
         // クイック入力チップ用グローバル関数
@@ -2100,8 +2220,33 @@
           });
           dom.btnConfirmAllExecute.addEventListener('click', executeResetAll);
 
+          // 収支マイナス時の選択確認モーダル
+          dom.modalNegativeHitCloseBtn.addEventListener('click', () => {
+            closeNegativeHitModal();
+            openHitModal();
+          });
+          dom.btnNegativeCancel.addEventListener('click', () => {
+            closeNegativeHitModal();
+            openHitModal();
+          });
+          dom.btnNegativeResetStep.addEventListener('click', () => {
+            if (pendingHitData) {
+              executeRecordHit(pendingHitData.payout, 1);
+              pendingHitData = null;
+            }
+            closeNegativeHitModal();
+          });
+          dom.btnNegativeContinueStep.addEventListener('click', () => {
+            if (pendingHitData) {
+              const continueStep = Math.max(1, pendingHitData.currentStep - state.settings.returnSteps);
+              executeRecordHit(pendingHitData.payout, continueStep);
+              pendingHitData = null;
+            }
+            closeNegativeHitModal();
+          });
+
           // 背景タップでモーダルを閉じる
-          [dom.modalHitBackdrop, dom.modalResetBackdrop, dom.modalConfirmAllBackdrop].forEach(modal => {
+          [dom.modalHitBackdrop, dom.modalResetBackdrop, dom.modalConfirmAllBackdrop, dom.modalNegativeHitBackdrop].forEach(modal => {
             modal.addEventListener('click', (e) => {
               if (e.target === modal) {
                 modal.classList.remove('open');
