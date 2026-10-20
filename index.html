@@ -1133,6 +1133,10 @@
             <span class="preview-val" id="modalProfitPreview">±0円</span>
           </div>
           <div class="preview-row">
+            <span style="color: var(--text-secondary);">的中後の累計収支:</span>
+            <span class="preview-val" id="modalNextCumulativeProfitPreview">±0円</span>
+          </div>
+          <div class="preview-row">
             <span style="color: var(--text-secondary);">次回ステップ:</span>
             <span class="preview-val" id="modalNextStepPreview" style="color: #38bdf8;">1回目</span>
           </div>
@@ -1318,6 +1322,7 @@
           modalHitBetText: document.getElementById('modalHitBetText'),
           inputPayoutAmount: document.getElementById('inputPayoutAmount'),
           modalProfitPreview: document.getElementById('modalProfitPreview'),
+          modalNextCumulativeProfitPreview: document.getElementById('modalNextCumulativeProfitPreview'),
           modalNextStepPreview: document.getElementById('modalNextStepPreview'),
           modalHitWarning: document.getElementById('modalHitWarning'),
           modalHitError: document.getElementById('modalHitError'),
@@ -1848,15 +1853,30 @@
           const betAmount = stepData.betAmount;
           const profit = payout - betAmount;
 
-          // 収支プレビュー
+          const statsBefore = calculateStats();
+          const nextCumulativeProfit = statsBefore.cumulativeProfit + profit;
+
+          // このレースの収支プレビュー
           dom.modalProfitPreview.textContent = formatSignedCurrency(profit);
           dom.modalProfitPreview.className = 'preview-val ' + (
             profit > 0 ? 'profit-plus' : (profit < 0 ? 'profit-minus' : 'profit-zero')
           );
 
-          // 次回ステッププレビュー: 回数を「戻り回数」だけ戻す(最小1)
-          const nextStep = Math.max(1, currentStep - state.settings.returnSteps);
-          dom.modalNextStepPreview.textContent = `${nextStep}回目`;
+          // 的中後の累計収支プレビュー
+          dom.modalNextCumulativeProfitPreview.textContent = formatSignedCurrency(nextCumulativeProfit);
+          dom.modalNextCumulativeProfitPreview.className = 'preview-val ' + (
+            nextCumulativeProfit > 0 ? 'profit-plus' : (nextCumulativeProfit < 0 ? 'profit-minus' : 'profit-zero')
+          );
+
+          // 次回ステッププレビュー: 的中して現在の累計収支が0以上になったら、1回目に戻す
+          if (payout > 0 && nextCumulativeProfit >= 0) {
+            dom.modalNextStepPreview.textContent = '1回目 (累計収支0円以上達成)';
+            dom.modalNextStepPreview.style.color = '#10b981';
+          } else {
+            const nextStep = Math.max(1, currentStep - state.settings.returnSteps);
+            dom.modalNextStepPreview.textContent = `${nextStep}回目`;
+            dom.modalNextStepPreview.style.color = '#38bdf8';
+          }
 
           // トリガミ警告 (払戻金額が賭け金を下回っている場合)
           if (payout > 0 && payout < betAmount) {
@@ -1932,8 +1952,8 @@
 
         /**
          * 的中を確定して記録
-         * - 収支がマイナス（払戻金 < 賭け金、または累計投資額未満）の場合は
-         *   回数をリセットするか継続するかを選択できるポップアップを表示
+         * - 的中して現在の累計収支が0以上になったら、自動的に1回目に戻す
+         * - 累計収支が0未満かつ収支がマイナスの場合は、回数をリセットするか継続するかを選択できるポップアップを表示
          */
         function confirmHit() {
           const rawVal = dom.inputPayoutAmount.value.trim();
@@ -1951,7 +1971,17 @@
           const profit = payout - betAmount;
           const totalInvestment = stepData.totalInvestment;
 
-          // 収支がマイナス（払戻金額が賭け金を下回るトリガミ、または連敗累計投資額を下回る場合）
+          const statsBefore = calculateStats();
+          const nextCumulativeProfit = statsBefore.cumulativeProfit + profit;
+
+          // 的中して現在の累計収支が0以上になったら、1回目に戻す
+          if (nextCumulativeProfit >= 0) {
+            executeRecordHit(payout, 1);
+            closeHitModal();
+            return;
+          }
+
+          // 累計収支が0未満かつ収支がマイナス（払戻金額が賭け金を下回るトリガミ、または連敗累計投資額を下回る場合）
           const isNegative = (profit < 0) || (payout < totalInvestment);
 
           if (isNegative) {
@@ -1967,7 +1997,7 @@
             return;
           }
 
-          // 収支がプラスの場合は通常通り記録し、戻り回数戻す
+          // 収支はプラスだが累計収支がマイナスの場合は設定の戻り回数分戻す
           executeRecordHit(payout, Math.max(1, currentStep - state.settings.returnSteps));
           closeHitModal();
         }
